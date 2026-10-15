@@ -16,6 +16,10 @@ from collections import deque
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from Mane.gaming_logger import GamingLogger
+
 # ======================================================================
 # First launch: install missing dependencies (standard library only)
 # ======================================================================
@@ -122,8 +126,8 @@ except ImportError:
     os.environ["DCC_RELAUNCHED"] = "1"
     sys.exit(subprocess.call([sys.executable, *sys.argv]))
 
-from app_icon import app_icon, create_start_menu_shortcut, save_ico, set_windows_app_id
-from features import FeatureHub
+from Mane.app_icon import app_icon, create_start_menu_shortcut, save_ico, set_windows_app_id
+from Mane.features import FeatureHub
 
 # ======================================================================
 # Settings (saved to a JSON file, edited through the Settings window)
@@ -491,6 +495,10 @@ class Dashboard(QWidget):
             "<span style='font-size:18px; font-weight:bold'>Dev Command Center</span>"))
         header.addStretch()
         self.hub = FeatureHub(self)
+        self.gaming = GamingLogger(CONFIG_DIR, tray, self)
+        games_button = QPushButton("🎮 Games")
+        games_button.clicked.connect(self.gaming.show_window)
+        header.addWidget(games_button)
         labs_button = QPushButton("🧪  Labs")
         labs_button.clicked.connect(self.hub.show_labs)
         header.addWidget(labs_button)
@@ -596,6 +604,7 @@ class Dashboard(QWidget):
         self.history.append(stats[self.graph_key])
         self.curve.setData(list(self.history))
         self.hub.on_stats(stats)
+        self.gaming.on_stats(stats)
 
         temp = stats.get("GPU °C", 0)
         if temp >= self.settings["temp_alert"] and time.time() - self.last_temp_alert > 300:
@@ -682,6 +691,7 @@ def main():
     menu.addAction("Show").triggered.connect(show_window)
     menu.addAction("Settings").triggered.connect(show_settings)
     menu.addAction("Labs").triggered.connect(window.hub.show_labs)
+    menu.addAction("Games").triggered.connect(window.gaming.show_window)
     if sys.platform == "win32":
         menu.addAction("Add to Start menu").triggered.connect(add_to_start_menu)
     menu.addSeparator()

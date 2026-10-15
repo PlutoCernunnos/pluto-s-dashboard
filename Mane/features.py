@@ -13,9 +13,15 @@ the methods. Shared building blocks (History, Notifier) are at the top so
 every feature can use them through self.hub.
 """
 import html
+import os
+from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+
+from .gaming_logger import GamingLogger as GamingEngine
+
+CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / ".config")) / "DevCommandCenter"
 
 STATUS_COLORS = {"planned": "#8b949e", "in progress": "#d29922", "done": "#3fb950"}
 
@@ -150,15 +156,28 @@ class Crossover(Feature):
 class GamingLogger(Feature):
     name = "Gaming session logger"
     description = "Detects running games and records a summary of each session."
+    status = "done"
     plan = [
-        "Add a list of game executables to Settings (e.g. Cyberpunk2077.exe).",
-        "Every ~10 seconds in on_stats, look for them with psutil.process_iter().",
-        "While a game runs, track average and peak GPU temp and usage.",
-        "When it closes, save the session to History and list sessions here.",
+        "Detects games in Steam, Epic, GOG, Riot, Xbox, EA, and Ubisoft folders.",
+        "Tracks CPU, GPU usage, GPU temp, and VRAM while a game runs.",
+        "Saves sessions to gaming.db and sends a tray alert when one ends.",
+        "Games outside those folders can be added manually.",
     ]
 
+    def __init__(self, hub):
+        super().__init__(hub)
+        self.engine = GamingEngine(CONFIG_DIR, hub.dashboard.tray, hub.dashboard)
+        hub.gaming = self.engine  # lets the dashboard and tray open the window
+
+    def build_widget(self):
+        card = plan_card(self)
+        button = QPushButton("🎮 Open gaming sessions")
+        button.clicked.connect(self.engine.show_window)
+        card.layout().addWidget(button)
+        return card
+
     def on_stats(self, stats):
-        pass  # TODO: detect games and track the session
+        self.engine.on_stats(stats)
 
 
 class PowerCost(Feature):
